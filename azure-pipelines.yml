@@ -1,51 +1,52 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-#trigger:
-#- main
-
-#pool:
-  #vmImage: ubuntu-latest
-
-#steps:
-#- script: echo Hello, world!
-  #displayName: 'Run a one-line script'
-
-#- script: |
-    #echo Add other tasks to build, test, and deploy your project.
-    #echo See https://aka.ms/yaml
-  #displayName: 'Run a multi-line script'
-
-# azure-pipelines.yml
+# Azure DevOps YAML pipeline to run Playwright tests
 
 trigger:
   branches:
     include:
-      - main  # Replace with your branch name if needed
+      - main
 
 pool:
   vmImage: 'ubuntu-latest'
 
+# Define variables
 variables:
-  PLAYWRIGHT_SERVICE_URL: '$(PLAYWRIGHT_SERVICE_URL)'  # Set a default value or reference a pipeline variable
+  NODE_VERSION: '16'  # Set Node.js version
+  PLAYWRIGHT_SERVICE_TOKEN: $(playwright_service_token)  # Set this in Azure DevOps Library for secure storage
 
 steps:
+  # 1. Install Node.js
   - task: UseNode@1
     inputs:
-      versionSpec: '14.x'  # Replace with your required Node.js version
-    displayName: 'Install Node.js'
+      version: $(NODE_VERSION)
 
+  # 2. Install project dependencies (including Playwright)
   - script: |
-      echo "Installing dependencies"
       npm install
     displayName: 'Install dependencies'
 
+  # 3. Set up Playwright (only if not using Microsoft Playwright Testing Service)
+  # Uncomment the next line to install Playwright's browsers on the agent
+  # - script: npx playwright install --with-deps
+
+  # 4. Run Playwright tests with optional service token
   - script: |
-      echo "Running tests with Playwright using service URL: $(PLAYWRIGHT_SERVICE_URL)"
-      # Use the environment variable in your Playwright command or script
-      PLAYWRIGHT_SERVICE_URL=$(PLAYWRIGHT_SERVICE_URL) npm test
+      if [ -n "$(PLAYWRIGHT_SERVICE_TOKEN)" ]; then
+        export PLAYWRIGHT_SERVICE_TOKEN=$(PLAYWRIGHT_SERVICE_TOKEN)
+      fi
+      npx playwright test --reporter=dot
     displayName: 'Run Playwright tests'
-    env:
-      PLAYWRIGHT_SERVICE_URL: $(PLAYWRIGHT_SERVICE_URL)  # Inject the variable into the environment
+
+  # 5. Publish test results
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/test-results/*.xml'  # Playwright XML results path if configured
+      searchFolder: '$(System.DefaultWorkingDirectory)'
+      testRunTitle: 'Playwright Tests'
+    condition: succeededOrFailed()
+
+  # Optional: Publish HTML test report (if generated)
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: './playwright-report'  # Adjust if report location differs
+      artifactName: 'Playwright Report'
+      condition: always()
