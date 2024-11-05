@@ -1,4 +1,4 @@
-name: GitHub Actions Demo for 1000 Digitised Manuscripts on the BL website
+name: GitHub Actions Demo for 1000 Digitised Manuscripts Test Script on the BL website
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on: [push]
 jobs:
