@@ -1,28 +1,41 @@
-- task: PowerShell@2
-  enabled: true
-  displayName: "Install dependencies"
-  inputs:
-    targetType: 'inline'
-    script: 'npm ci'
-    workingDirectory: C:\Users\damia\Documents\Batch2\test-results # update accordingly
+trigger:
+- main # Adjust the trigger branch as needed
 
-- task: AzureCLI@2
-  displayName: Run Playwright Test  
+#parameters:
+  #runIdPrefix: 'Run-' # Modify as necessary
+
+jobs:
+- job: PlaywrightTests
+  displayName: 'Run Playwright Tests in Cloud'
+  pool:
+    vmImage: 'ubuntu-latest' # or use another appropriate image
+
+  steps:
+  - task: PowerShell@2
+    enabled: true
+    displayName: 'Install dependencies'
+    inputs:
+      targetType: 'inline'
+      script: 'npm ci'
+      workingDirectory: Batch2/ # Update accordingly
+
+  - task: AzureCLI@2
+    displayName: 'Run Playwright Tests'
     env:
-    PLAYWRIGHT_SERVICE_URL: $(PLAYWRIGHT_SERVICE_URL)
-    PLAYWRIGHT_SERVICE_RUN_ID: ${{ parameters.runIdPrefix }}$(Build.DefinitionName) - $(Build.BuildNumber) - $(System.JobAttempt) 
-  inputs:
-    azureSubscription: 'c8bdb2a4-4d2d-4cd8-9c9a-f854dc1cd624' # Service connection used to authenticate this pipeline with Azure to use the service
-    scriptType: 'pscore'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      npx playwright test -c playwright.service.config.js --workers=20
-  addSpnToEnvironment: true
-  workingDirectory: C:\Users\damia\Documents\Batch2\ # update accordingly
+      PLAYWRIGHT_SERVICE_URL: $(PLAYWRIGHT_SERVICE_URL)
+      PLAYWRIGHT_SERVICE_RUN_ID: ${{ parameters.runIdPrefix }}$(Build.DefinitionName)-$(Build.BuildNumber)-$(System.JobAttempt)
+    inputs:
+      azureSubscription: 'My_Service_Connection' # Service connection used to authenticate this pipeline with Azure to use the service
+      scriptType: 'pscore'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        npx playwright test --config=playwright.service.config.ts --workers=20
+    addSpnToEnvironment: true
+    workingDirectory: test-results # Update accordingly
 
-- task: PublishPipelineArtifact@1
-  displayName: Upload Playwright report
-  inputs:
-    targetPath: C:\Users\damia\Documents\Batch2\playwright-report\ # update accordingly
-    artifact: 'Playwright tests'
-    publishLocation: 'pipeline'
+  - task: PublishPipelineArtifact@1
+    displayName: 'Upload Playwright Report'
+    inputs:
+      targetPath: /playwright-report/ # Update accordingly
+      artifact: 'Playwright tests'
+      publishLocation: 'pipeline'
