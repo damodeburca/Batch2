@@ -1,52 +1,28 @@
-# Azure DevOps YAML pipeline to run Playwright tests
+- task: PowerShell@2
+  enabled: true
+  displayName: "Install dependencies"
+  inputs:
+    targetType: 'inline'
+    script: 'npm ci'
+    workingDirectory: C:\Users\damia\Documents\Batch2\test-results # update accordingly
 
-trigger:
-  branches:
-    include:
-      - main
+- task: AzureCLI@2
+  displayName: Run Playwright Test  
+    env:
+    PLAYWRIGHT_SERVICE_URL: $(PLAYWRIGHT_SERVICE_URL)
+    PLAYWRIGHT_SERVICE_RUN_ID: ${{ parameters.runIdPrefix }}$(Build.DefinitionName) - $(Build.BuildNumber) - $(System.JobAttempt) 
+  inputs:
+    azureSubscription: 'c8bdb2a4-4d2d-4cd8-9c9a-f854dc1cd624' # Service connection used to authenticate this pipeline with Azure to use the service
+    scriptType: 'pscore'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      npx playwright test -c playwright.service.config.js --workers=20
+  addSpnToEnvironment: true
+  workingDirectory: C:\Users\damia\Documents\Batch2\ # update accordingly
 
-pool:
-  vmImage: 'ubuntu-latest'
-
-# Define variables
-variables:
-  NODE_VERSION: '16'  # Set Node.js version
-  PLAYWRIGHT_SERVICE_TOKEN: $(playwright_service_token)  # Set this in Azure DevOps Library for secure storage
-
-steps:
-  # 1. Install Node.js
-  - task: UseNode@1
-    inputs:
-      version: $(NODE_VERSION)
-
-  # 2. Install project dependencies (including Playwright)
-  - script: |
-      npm install
-    displayName: 'Install dependencies'
-
-  # 3. Set up Playwright (only if not using Microsoft Playwright Testing Service)
-  # Uncomment the next line to install Playwright's browsers on the agent
-  # - script: npx playwright install --with-deps
-
-  # 4. Run Playwright tests with optional service token
-  - script: |
-      if [ -n "$(PLAYWRIGHT_SERVICE_TOKEN)" ]; then
-        export PLAYWRIGHT_SERVICE_TOKEN=$(PLAYWRIGHT_SERVICE_TOKEN)
-      fi
-      npx playwright test --reporter=dot
-    displayName: 'Run Playwright tests'
-
-  # 5. Publish test results
-  - task: PublishTestResults@2
-    inputs:
-      testResultsFiles: '**/test-results/*.xml'  # Playwright XML results path if configured
-      searchFolder: '$(System.DefaultWorkingDirectory)'
-      testRunTitle: 'Playwright Tests'
-    condition: succeededOrFailed()
-
-  # Optional: Publish HTML test report (if generated)
-  - task: PublishBuildArtifacts@1
-    inputs:
-      pathtoPublish: './playwright-report'  # Adjust if report location differs
-      artifactName: 'Playwright Report'
-      condition: always()
+- task: PublishPipelineArtifact@1
+  displayName: Upload Playwright report
+  inputs:
+    targetPath: C:\Users\damia\Documents\Batch2\playwright-report\ # update accordingly
+    artifact: 'Playwright tests'
+    publishLocation: 'pipeline'
